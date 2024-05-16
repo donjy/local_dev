@@ -104,8 +104,10 @@ def balance_sample_by_smote(df: pd.DataFrame, params: dict) -> pd.DataFrame:
     df_original = df.copy()
     df_preprocessed, mappings = preprocess_data(df, return_mappings=True)
 
-    # 缺失值处理
-    df_preprocessed = fill_nan_data(df_preprocessed)
+    # 缺失值处理, 使用后向填充（bfill）
+    df_preprocessed = df_preprocessed.bfill()
+    # 仍然存在NaN的情况下用均值填充
+    df_preprocessed = df_preprocessed.fillna(df.mean())
 
     # SMOTE
     smote = SMOTE(random_state=random_seed, k_neighbors=k_neighbors)
@@ -248,60 +250,98 @@ def fill_nan_data(df: pd.DataFrame, params: dict) -> pd.DataFrame:
 
     return df
 
-#
 
-if __name__ == '__main__':
-    data = pd.read_csv("E:\\datasets\\titanic.csv")
-    test_data = pd.read_excel("E:\\datasets\\test_data.xlsx", sheet_name='test1')
+def data_type_convert(df: pd.DataFrame, params: dict) -> pd.DataFrame:
+    """
+    将数据集中的字段转换为指定的数据类型。
+    Args:
+        df (pd.DataFrame): 需要填充缺失值的数据集。
+        params (dict): 包含所有必要参数的字典，包括：
+            - target_field (dic): 用于填充缺失值的字段名称以及填充方法。
+            - field_type (str): 字段类型，'数值'，'文本' ，'日期'。
+            - process_method: 处理方法，'数字转文本'，'数字转日期'，'日期转文本'， '日期转数字'， '文本转数字'，'文本转日期'
+            - conf_params: 配置参数，如'区间转换'，'唯一值转换'
+            示例：
+            conf_params = {
+                      "区间转换": {
+                        "0~18": "少年",
+                        "19~30": "青年",
+                        "31~50": "中年",
+                        "51~100": "老年"
+                      },
+                      "唯一值转换": {
+                        "0": "少年",
+                        "1": "老年"
+                      }
+                    }
 
-    params_absolute = {
-        'target_field': 'Survived',  # 替换为实际的目标列名
-        'random_type': 'absolute',  # 指定抽样类型为绝对数量
-        'random_seed': 42,  # 随机种子，确保可重现性
-        'sample_cls_params': {
-            0: 5,  # 类别0的样本数量
-            1: 3  # 类别1的样本数量
-        }
-    }
+    Returns: pd.DataFrame: 转换数据类型后的数据集。
 
-    # 随机欠采样
-    # balanced_data_down = balance_sample_by_random(data, params_absolute)
-    # print(balanced_data_down.groupby('Survived').size())
+    """
+    
+    convertor = TypeConversion(df)
+    for field, specs in params.items():
+        field_type = specs['field_type']
+        process_method = specs['process_method']
+        conf_params = specs['conf_params']
 
-    # 随机过采样
+        # 数值转文本
+        if field_type == '数值' and process_method == '数值转文本':
+            if '区间转换' in conf_params:
+                # 从配置中提取区间和标签，配对并排序
+                bin_label_pairs = [
+                    (int(k.split('~')[0]), int(k.split('~')[1]), v)
+                    for k, v in conf_params['区间转换'].items()
+                ]
 
-    params_smote = {
-        'target_field': 'Survived',  # 替换为实际的目标列名
-        'random_seed': 42,  # 随机种子，确保可重现性
-        'k_neighbors': 5  # 用于计算 SMOTE 的近邻数
-    }
+                # 根据区间起始值排序配对
+                bin_label_pairs.sort(key=lambda x: x[0])
 
-    # balanced_data_over = balance_sample_by_smote(data, params_smote)
-    # print(balanced_data_over.groupby('Survived').size())
+                # 解包为排序后的bins和labels
+                bins = [pair[0] for pair in bin_label_pairs] + [bin_label_pairs[-1][1]]
+                labels = [pair[2] for pair in bin_label_pairs]
+                convertor.numbers_convert_to_text_bins(field, bins, labels)
+            elif '唯一值转换' in conf_params:
+                convertor.numbers_convert_to_text_unique(field, conf_params['唯一值转换'])
 
-    remove_params = {
-        'target_fields': ['name', 'country'],
-        'ignore_case': True
-    }
+        # 数值转日期
+        elif field_type == '数值' and process_method == '数值转日期':
+            date_format = conf_params.get('date_format', '%Y-%m-%d')
+            convertor.numbers_convert_to_date(field, date_format)
 
-    # removed_data = remove_duplicates_data(test_data, remove_params)
-    # print(removed_data)
+        # 日期转文本
+        elif field_type == '日期' and process_method == '日期转文本':
+            date_format = conf_params.get('date_format', '%Y-%m-%d')
 
-    fill_params = {
-        'age': {
-            'field_type': '数值',
-            'fill_method': '众数',  # 用平均年龄填充缺失的年龄
-        },
-        'name': {
-            'field_type': '文本',
-            'fill_method': '最多次数项'
-        },
-        'join_date': {
-            'field_type': '日期',
-            # 'fill_method': 'constant',
-            'fill_value': '2024-01-01'  # 用指定日期填充缺失的加入日期
-        }
-    }
+            # 从配置中提取日期区间和标签，转换为datetime对象并配对
+            bin_label_pairs = [
+                (pd.to_datetime(k.split('~')[0], format=date_format),
+                 pd.to_datetime(k.split('~')[1], format=date_format), v)
+                for k, v in conf_params['区间转换'].items()
+            ]
 
-    filled_df = fill_nan_data(test_data, fill_params)
-    # print(filled_df)
+            # 根据区间起始日期排序配对，并解包为排序后的bins和labels
+            bin_label_pairs.sort(key=lambda x: x[0])  # 根据起始日期排序
+            bins = [pair[0] for pair in bin_label_pairs] + [bin_label_pairs[-1][1]]
+            labels = [pair[2] for pair in bin_label_pairs]
+
+            convertor.date_convert_to_text_bins(field, bins, labels, date_format)
+
+        # 日期转数值
+        elif field_type == '日期' and process_method == '日期转数值':
+            timestamp_length = conf_params.get('timestamp_length', 13)
+            date_format = conf_params.get('date_format', '%Y-%m-%d')
+            convertor.date_convert_to_timestamp(field, timestamp_length, date_format)
+
+        # 文本转数值
+        elif field_type == '文本' and process_method == '文本转数值':
+            rule_map = conf_params.get('rule_map')
+            convertor.text_convert_to_numbers(field, rule_map)
+
+        # 文本转日期
+        elif field_type == '文本' and process_method == '文本转日期':
+            regex = conf_params.get('regex')
+            date_format = conf_params.get('date_format', '%Y-%m-%d')
+            convertor.text_convert_to_dates(field, regex, date_format)
+
+    return convertor.df
