@@ -259,8 +259,8 @@ def data_type_convert(df: pd.DataFrame, params: dict) -> pd.DataFrame:
         params (dict): 包含所有必要参数的字典，包括：
             - target_field (dic): 用于填充缺失值的字段名称以及填充方法。
             - field_type (str): 字段类型，'数值'，'文本' ，'日期'。
-            - process_method: 处理方法，'数字转文本'，'数字转日期'，'日期转文本'， '日期转数字'， '文本转数字'，'文本转日期'
-            - conf_params: 配置参数，如'区间转换'，'唯一值转换'
+            - process_method (str): 处理方法，'数值转文本'，'数值转日期'，'日期转文本'， '日期转数值'， '文本转数值'，'文本转日期'
+            - conf_params (dic): 配置参数，如'区间转换'，'唯一值转换'
             示例：
             conf_params = {
                       "区间转换": {
@@ -302,7 +302,9 @@ def data_type_convert(df: pd.DataFrame, params: dict) -> pd.DataFrame:
                 labels = [pair[2] for pair in bin_label_pairs]
                 convertor.numbers_convert_to_text_bins(field, bins, labels)
             elif '唯一值转换' in conf_params:
-                convertor.numbers_convert_to_text_unique(field, conf_params['唯一值转换'])
+                unique_value_list = conf_params['唯一值转换']['unique_value_list']
+                value = conf_params['唯一值转换']['value']
+                convertor.numbers_convert_to_text_unique(field, unique_value_list, value)
 
         # 数值转日期
         elif field_type == '数值' and process_method == '数值转日期':
@@ -311,22 +313,26 @@ def data_type_convert(df: pd.DataFrame, params: dict) -> pd.DataFrame:
 
         # 日期转文本
         elif field_type == '日期' and process_method == '日期转文本':
-            date_format = conf_params.get('date_format', '%Y-%m-%d')
+            if '区间转换' in conf_params:
+                date_format = conf_params.get('date_format', '%Y-%m-%d')
 
-            # 从配置中提取日期区间和标签，转换为datetime对象并配对
-            bin_label_pairs = [
-                (pd.to_datetime(k.split('~')[0], format=date_format),
-                 pd.to_datetime(k.split('~')[1], format=date_format), v)
-                for k, v in conf_params['区间转换'].items()
-            ]
+                # 从配置中提取日期区间和标签，转换为datetime对象并配对
+                bin_label_pairs = [
+                    (pd.to_datetime(k.split('~')[0], format=date_format),
+                     pd.to_datetime(k.split('~')[1], format=date_format), v)
+                    for k, v in conf_params['区间转换'].items()
+                ]
 
-            # 根据区间起始日期排序配对，并解包为排序后的bins和labels
-            bin_label_pairs.sort(key=lambda x: x[0])  # 根据起始日期排序
-            bins = [pair[0] for pair in bin_label_pairs] + [bin_label_pairs[-1][1]]
-            labels = [pair[2] for pair in bin_label_pairs]
+                # 根据区间起始日期排序配对，并解包为排序后的bins和labels
+                bin_label_pairs.sort(key=lambda x: x[0])  # 根据起始日期排序
+                bins = [pair[0] for pair in bin_label_pairs] + [bin_label_pairs[-1][1]]
+                labels = [pair[2] for pair in bin_label_pairs]
 
-            convertor.date_convert_to_text_bins(field, bins, labels, date_format)
-
+                convertor.date_convert_to_text_bins(field, bins, labels, date_format)
+            elif '唯一值转换' in conf_params:
+                unique_value_list = conf_params['唯一值转换']['unique_value_list']
+                value = conf_params['唯一值转换']['value']
+                convertor.date_convert_to_text_unique(field, unique_value_list, value)
         # 日期转数值
         elif field_type == '日期' and process_method == '日期转数值':
             timestamp_length = conf_params.get('timestamp_length', 13)

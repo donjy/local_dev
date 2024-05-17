@@ -91,20 +91,19 @@ def test_data_type_convert():
                 }
             }
         },
-        'label': {
+        'age2': {
             'field_type': '数值',
             'process_method': '数值转文本',
             'conf_params': {
                 '唯一值转换': {
-                    1: "a",
-                    2: "b",
-                    3: "c"
+                    'unique_value_list': [[2, 22], [50, 70]],
+                    'value': ['年轻人', '老人']
                 }
             }
         },
-        'join_date': {
-            'field_type': '日期',
-            'process_method': '日期转数值',
+        'time': {
+            'field_type': '数值',
+            'process_method': '数值转日期',
             'conf_params': {
                 'date_format': '%Y-%m-%d'
             }
@@ -121,14 +120,33 @@ def test_data_type_convert():
                 'date_format': '%Y-%m-%d'
             }
         },
+        'date': {
+            'field_type': '日期',
+            'process_method': '日期转文本',
+            'conf_params': {
+                '唯一值转换': {
+                    'unique_value_list': [['2021-05-01', '2023-12-31'], ['2024-01-01', '2024-1-1']],
+                    'value': ['2021年', '2024年']
+
+                },
+                'date_format': '%Y-%m-%d'
+            }
+        },
+        'join_date': {
+            'field_type': '日期',
+            'process_method': '日期转数值',
+            'conf_params': {
+                'date_format': '%Y-%m-%d'
+            }
+        },
         'text2': {
             'field_type': '文本',
             'process_method': '文本转数值',
             'conf_params': {
                 'rule_map': {
-                    'unique_value_list': ['this is test', 'this is run', 'a123'],  # 指定文本字段的唯一值列表
-                    "re": r"^.{3,5}$",  # 长度3-5位的字符
-                    "value": 1
+                    'unique_value_list': [['123', '456', '789'], ['11', '22']],  # 指定文本字段的唯一值列表
+                    're': [r"^\d{3}$", r"^\d{2}$"],
+                    'value': [2, 3]
                 }
             }
         },
@@ -137,9 +155,9 @@ def test_data_type_convert():
             'process_method': '文本转日期',
             'conf_params': {
                 'rule_map': {
-                    'unique_value_list': ['He arrived on 2023-06-15', 'The event was on 07/24/2023'],  # 指定文本字段的唯一值列表
-                    "re": r'\d{2}/\d{2}/\d{4}',  # 匹配日期格式 MM/DD/YYYY
-                    'date_format': '%Y-%m-%d'  # 转换为 YYYY-MM-DD 格式
+                    'unique_value_list': [['10/10/2020aaa'], ['2023-12-31', '2024-01-01', 'He arrived on 2023-06-15']],
+                    "re": [r"\d{2}/\d{2}/\d{4}", r"\d{4}-\d{2}-\d{2}"],
+                    'date_format': ['%m/%d/%Y', '%Y-%m-%d']
                 }
             }
         }

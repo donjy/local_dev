@@ -56,58 +56,57 @@ class TypeConversion:
         return self.df
 
     # 将指定字段的数字类型按指定唯一值转文本类型
-    def numbers_convert_to_text_unique(self, field: str, mapping: dict) -> pd.DataFrame:
+    def numbers_convert_to_text_unique(self, field: str, unique_value_lists: list, values: list) -> pd.DataFrame:
         """
-        将指定字段的数字转换为文本，根据传入的映射字典进行转换。
-        未在映射中的值将保持原值。
+        将指定字段的唯一值根据提供的列表转换为指定的多个文本值，未在唯一值列表中的值将保持原值。
 
         Args:
             field (str): 需要转换的字段名称。
-            mapping (dict): 包含数字到文本的映射。
+            unique_value_lists (list of list): 多个唯一值列表，每个列表中的值都将转换成对应的文本值。
+            values (list): 每个唯一值列表对应的文本值。
 
         Returns:
             pd.DataFrame: 转换后的DataFrame。
         """
+        if field in self.df.columns:
+            for unique_value_list, value in zip(unique_value_lists, values):
+                # 标记应转换的行
+                self.df.loc[self.df[field].isin(unique_value_list), field] = value
+        else:
+            print(f"字段 '{field}' 不存在于DataFrame中")
 
-        self.df[field] = self.df[field].map(mapping).fillna(self.df[field])
         return self.df
 
     def numbers_convert_to_date(self, field: str, date_format: str = '%Y-%m-%d') -> pd.DataFrame:
         """
-             将指定字段的数字类型转为日期格式，支持10位和13位的Unix时间戳。
-             默认日期格式为'%Y-%m-%d'。仅转换10位（秒级）和13位（毫秒级）的时间戳，
-             如果字段值不满足条件则不进行转换，保留原值。
+        将指定字段的数字类型转为日期格式，支持10位和13位的Unix时间戳。
+        默认日期格式为'%Y-%m-%d'。仅转换10位（秒级）和13位（毫秒级）的时间戳，
+        如果字段值不满足条件则不进行转换，保留原值。
 
-             Args:
-                 field (str): 需要转换的字段名称。
-                 date_format (str): 日期格式，默认为'%Y-%m-%d'。
+        Args:
+            field (str): 需要转换的字段名称。
+            date_format (str): 日期格式，默认为'%Y-%m-%d'。
 
-             Returns:
-                 pd.DataFrame: 转换后的DataFrame，如果字段不存在或无可转换数据，则返回原DataFrame。
-             """
-        if field not in self.df.columns:
+        Returns:
+            pd.DataFrame: 转换后的DataFrame，如果字段不存在或无可转换数据，则返回原DataFrame。
+        """
+        if field in self.df.columns:
+            # 尝试转换时间戳到日期
+            def convert_timestamp_to_date(timestamp):
+                try:
+                    if len(str(timestamp)) == 10:
+                        return pd.to_datetime(timestamp, unit='s').strftime(date_format)
+                    elif len(str(timestamp)) == 13:
+                        return pd.to_datetime(timestamp, unit='ms').strftime(date_format)
+                    else:
+                        return timestamp  # 保留原始值
+                except (ValueError, OverflowError, TypeError):
+                    return timestamp  # 如果转换失败，返回原始值
+
+            # 应用转换函数到指定字段
+            self.df[field] = self.df[field].apply(convert_timestamp_to_date)
+        else:
             print(f"字段 '{field}' 不存在于DataFrame中")
-            return self.df
-
-        # 创建一个新列来临时存放转换后的日期，避免直接影响原始列
-        self.df['_tmp_date'] = pd.to_numeric(self.df[field], errors='coerce')
-
-        # 确定哪些行是10位或13位的时间戳
-        conditions = self.df['_tmp_date'].notna()
-        timestamp_lengths = self.df.loc[conditions, '_tmp_date'].astype(str).str.len()
-        conditions &= timestamp_lengths.isin([10, 13])
-
-        # 转换10位和13位时间戳
-        self.df.loc[conditions & (timestamp_lengths == 10), '_tmp_date'] = pd.to_datetime(
-            self.df.loc[conditions & (timestamp_lengths == 10), '_tmp_date'], unit='s'
-        ).dt.strftime(date_format)
-        self.df.loc[conditions & (timestamp_lengths == 13), '_tmp_date'] = pd.to_datetime(
-            self.df.loc[conditions & (timestamp_lengths == 13), '_tmp_date'], unit='ms'
-        ).dt.strftime(date_format)
-
-        # 将转换好的日期值写回原字段，未转换的保留原值
-        self.df[field] = self.df['_tmp_date'].fillna(self.df[field])
-        self.df.drop(columns=['_tmp_date'], inplace=True)  # 清理临时列
 
         return self.df
 
@@ -137,6 +136,32 @@ class TypeConversion:
 
         return self.df
 
+    def date_convert_to_text_unique(self, field: str, unique_value_lists: list, values: list,
+                                    date_format: str = '%Y-%m-%d') -> pd.DataFrame:
+        """
+        将指定的日期字段根据给定的多个唯一值列表时间转换为对应的多个文本标签。
+        时间格式默认为'%Y-%m-%d'。
+        Args:
+            field:  (str): 需要转换的日期字段。
+            unique_value_lists: (list of list): 多个唯一日期值列表，每个列表中的日期值都将转换成对应的文本值。
+            values: (list): 每个唯一值列表对应的文本值。
+            date_format: (str): 用于解析和格式化日期的字符串，默认为'%Y-%m-%d'。
+
+        Returns: pd.DataFrame: 转换后的DataFrame。
+        """
+        if field in self.df.columns:
+            # 先将日期字段转换为统一的格式，方便比较
+            self.df[field] = pd.to_datetime(self.df[field], errors='coerce', format=date_format).dt.strftime(
+                date_format)
+
+            # 为每个唯一日期值列表应用转换
+            for unique_dates, value in zip(unique_value_lists, values):
+                self.df.loc[self.df[field].isin(unique_dates), field] = value
+        else:
+            print(f"字段 '{field}' 不存在于DataFrame中")
+
+        return self.df
+
     def date_convert_to_timestamp(self, field: str, timestamp_length: int = 13,
                                   date_format: str = '%Y-%m-%d') -> pd.DataFrame:
         """
@@ -153,7 +178,9 @@ class TypeConversion:
         """
         if field in self.df.columns:
             # 解析日期并本地化时间
-            self.df['_tmp_timestamp'] = pd.to_datetime(self.df[field], format=date_format, errors='coerce').dt.tz_localize('Asia/Shanghai', ambiguous='raise')
+            self.df['_tmp_timestamp'] = pd.to_datetime(self.df[field], format=date_format,
+                                                       errors='coerce').dt.tz_localize('Asia/Shanghai',
+                                                                                       ambiguous='raise')
 
             # 将本地时间转换为UTC时间戳
             if timestamp_length == 13:
@@ -175,77 +202,71 @@ class TypeConversion:
 
         Args:
             field (str): 需要转换的字段名称。
-            rule_map (dict): 包含正则表达式和对应的数字。
-                - unique_value_list (list): 需要转换的唯一值列表。
-                - re (str): 正则表达式。
-                - value (int): 转换后的值。
+            rule_map (dict): 包含多个正则表达式和对应的数字。
+                - unique_value_list (list of list): 需要转换的多组唯一值列表。
+                - re (list of str): 正则表达式列表。
+                - value (list of int): 转换后的值列表。
              示例:
-            {'unique_value_list': ['123', '456', '789'],
-             're': r"^\d{3}$",  # 完全匹配三位数字
-             'value': 1}
+            {'unique_value_list': [['123', '456', '789'],['11','22']],
+             're': [r"^\d{3}$", r"^\d{2}$"],
+             'value': [2,3]}
 
         Returns:
             pd.DataFrame: 转换后的DataFrame。
         """
-        unique_value_list = rule_map['unique_value_list']
-        regex = rule_map['re']
-        value = rule_map['value']
+        unique_value_lists = rule_map['unique_value_list']
+        regexes = rule_map['re']
+        values = rule_map['value']
 
-        # 将df的field字段类型转为字符串
+        # 确保字段类型是字符串，以便进行正则匹配
         self.df[field] = self.df[field].astype(str)
 
-        # 为每个唯一值应用正则表达式并根据结果修改值
-        for unique_value in unique_value_list:
-            # 检查当前值是否完全匹配正则表达式
-            if re.fullmatch(regex, unique_value):
-                # 将符合条件的行的值改为指定的 'value'
-                self.df.loc[self.df[field].astype(str) == unique_value, field] = value
+        # 为每组正则表达式和值列表应用转换
+        for unique_values, regex, value in zip(unique_value_lists, regexes, values):
+            for unique_value in unique_values:
+                # 检查当前值是否完全匹配正则表达式
+                if re.fullmatch(regex, unique_value):
+                    # 将符合条件的行的值改为指定的 'value'
+                    self.df.loc[self.df[field] == unique_value, field] = value
 
         return self.df
 
     def text_convert_to_dates(self, field: str, rule_map: dict) -> pd.DataFrame:
         """
-        从指定文本字段中提取日期，并将其转换为指定的格式。
+        从指定文本字段中提取日期，并将其转换为指定的格式，支持多种匹配规则。
 
         Args:
             field (str): 需要转换的字段名称。
-            rule_map (dict): 包含正则表达式和日期格式。
-                - unique_value_list (list): 需要转换的唯一值列表。
-                - re (str): 正则表达式，用于提取日期。
-                - date_format (str): 日期的目标格式，默认为 '%Y-%m-%d'。
+            rule_map (dict): 包含多组正则表达式和日期格式的字典。
+                - unique_value_lists (list of list): 多个需要转换的唯一值列表。
+                - res (list of str): 多个正则表达式，用于提取日期。
+                - date_formats (list of str): 多个日期的目标格式，默认为 '%Y-%m-%d'。
 
         Returns:
             pd.DataFrame: 转换后包含更新日期格式的DataFrame。
         """
-        unique_value_list = rule_map['unique_value_list']
-        regex = rule_map['re']
-        date_format = rule_map.get('date_format', '%Y-%m-%d')  # 使用默认格式或提供的格式
+        unique_value_lists = rule_map['unique_value_lists']
+        regexes = rule_map['res']
+        date_formats = rule_map['date_formats']
 
-        # 为每个唯一值应用正则表达式并根据结果修改值
-        for unique_value in unique_value_list:
-            # 检查当前值是否匹配正则表达式，并提取日期
-            match = re.search(regex, unique_value)
-            if match:
-                try:
-                    # 将匹配到的日期字符串转换为日期对象，然后格式化为指定的格式
-                    date_obj = datetime.strptime(match.group(), '%m/%d/%Y')  # 假设提取的日期格式为 MM/DD/YYYY
-                    formatted_date = date_obj.strftime(date_format)
-                    # 更新DataFrame中匹配到的值
-                    self.df.loc[self.df[field] == unique_value, field] = formatted_date
-                except ValueError:
-                    print(f"日期格式转换错误: {match.group()} 无法按照预期格式解析")
-            else:
-                # 如果没有匹配到，保留原始值
-                continue
+        # 为每组正则表达式和日期格式应用转换
+        for unique_value_list, regex, date_format in zip(unique_value_lists, regexes, date_formats):
+            for unique_value in unique_value_list:
+                match = re.search(regex, unique_value)
+                if match:
+                    try:
+                        # 将匹配到的日期字符串转换为日期对象，然后格式化为指定的格式
+                        date_obj = datetime.strptime(match.group(), date_format)
+                        formatted_date = date_obj.strftime(date_format)
+                        # 更新DataFrame中匹配到的值
+                        self.df.loc[self.df[field] == unique_value, field] = formatted_date
+                    except ValueError:
+                        print(f"日期格式转换错误: {match.group()} 无法按照预期格式解析")
+                else:
+                    # 如果没有匹配到，保留原始值
+                    continue
 
         return self.df
-
-
-
-
-
-
-
 
 
 if __name__ == '__main__':
@@ -257,10 +278,3 @@ if __name__ == '__main__':
 
     df = pd.read_excel("E:\\datasets\\test_data.xlsx", sheet_name='test1')
 
-    data = {
-        'text': ['123', 'hello world', '999', 'another test example', 'this is run', '123', '456', '789']
-    }
-    df2 = pd.DataFrame(data)
-
-    # print(df)
-    trans = TypeConversion(df)
