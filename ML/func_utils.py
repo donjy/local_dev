@@ -29,21 +29,6 @@ def invert_mappings(df, mappings):
     return df
 
 
-def convert_date(text, regex, date_format):
-    """
-    用正则表达式从文本中提取日期，并尝试按照指定格式转换日期。
-    如果匹配成功，转换日期格式；如果失败，返回原始文本。
-    """
-    match = re.search(regex, text)
-    if match:
-        try:
-            date = datetime.strptime(match.group(), '%Y-%m-%d')  # 假设匹配到的日期格式是YYYY-MM-DD
-            return date.strftime(date_format)
-        except ValueError:
-            return text  # 如果日期格式不正确或无法转换
-    return text  # 如果没有找到匹配项，返回原文本
-
-
 class TypeConversion:
     def __init__(self, df: pd.DataFrame):
         self.df = df
@@ -186,62 +171,72 @@ class TypeConversion:
 
     def text_convert_to_numbers(self, field: str, rule_map: dict) -> pd.DataFrame:
         """
-        将指定字段的文本内容按照正则表达式转换为数字。
+        将指定字段的文本内容按照用户定义的正则表达式转换为数字。
 
         Args:
             field (str): 需要转换的字段名称。
             rule_map (dict): 包含正则表达式和对应的数字。
-                示例: {'re': "re.search('test', x) is None", 'value': 1}
+                - unique_value_list (list): 需要转换的唯一值列表。
+                - re (str): 正则表达式。
+                - value (int): 转换后的值。
+             示例:
+            {'unique_value_list': ['123', '456', '789'],
+             're': r"^\d{3}$",  # 完全匹配三位数字
+             'value': 1}
 
         Returns:
             pd.DataFrame: 转换后的DataFrame。
         """
-        if field not in self.df.columns:
-            print(f"字段 '{field}' 不存在于DataFrame中")
-            return self.df
-
-        # 初始化列，假设未匹配到则保留原始值
-        self.df[field + '_num'] = self.df[field]
-
-        # 提取正则表达式和转换值
-        expr = rule_map['re']
+        unique_value_list = rule_map['unique_value_list']
+        regex = rule_map['re']
         value = rule_map['value']
 
-        # 安全地应用正则表达式匹配并转换
-        self.df[field + '_num'] = self.df[field].apply(
-            lambda x: value if isinstance(x, str) and eval(expr, {'re': re, 'x': x}) else x
-        )
+        # 将df的field字段类型转为字符串
+        self.df[field] = self.df[field].astype(str)
 
-        # 替换原字段为转换后的_num字段
-        self.df[field] = self.df[field + '_num']
-        self.df.drop(columns=[field + '_num'], inplace=True)
+        # 为每个唯一值应用正则表达式并根据结果修改值
+        for unique_value in unique_value_list:
+            # 检查当前值是否完全匹配正则表达式
+            if re.fullmatch(regex, unique_value):
+                # 将符合条件的行的值改为指定的 'value'
+                self.df.loc[self.df[field].astype(str) == unique_value, field] = value
 
         return self.df
 
-    def text_convert_to_dates(self, field: str, regex: str, date_format: str = '%Y-%m-%d') -> pd.DataFrame:
+    def text_convert_to_dates(self, field: str, rule_map: dict) -> pd.DataFrame:
         """
         从指定文本字段中提取日期，并将其转换为指定的格式。
 
         Args:
-            field (str): 需要转换日期的字段名称。
-            regex (str): 用于提取日期的正则表达式。
-            date_format (str): 日期的目标格式，默认为 '%Y-%m-%d'。
+            field (str): 需要转换的字段名称。
+            rule_map (dict): 包含正则表达式和日期格式。
+                - unique_value_list (list): 需要转换的唯一值列表。
+                - re (str): 正则表达式，用于提取日期。
+                - date_format (str): 日期的目标格式，默认为 '%Y-%m-%d'。
 
         Returns:
             pd.DataFrame: 转换后包含更新日期格式的DataFrame。
         """
-        if field not in self.df.columns:
-            print(f"字段 '{field}' 不存在于DataFrame中")
-            return self.df
+        unique_value_list = rule_map['unique_value_list']
+        regex = rule_map['re']
+        date_format = rule_map.get('date_format', '%Y-%m-%d')  # 使用默认格式或提供的格式
 
-        # 使用正则表达式查找并尝试转换日期
-        self.df[field + '_date'] = self.df[field].apply(
-            lambda text: convert_date(str(text), regex, date_format) if isinstance(text, str) else text
-        )
-
-        # 替换原字段为转换后的_date字段，如果未转换成功则保留原始值
-        self.df[field] = self.df[field + '_date']
-        self.df.drop(columns=[field + '_date'], inplace=True)  # 删除临时列
+        # 为每个唯一值应用正则表达式并根据结果修改值
+        for unique_value in unique_value_list:
+            # 检查当前值是否匹配正则表达式，并提取日期
+            match = re.search(regex, unique_value)
+            if match:
+                try:
+                    # 将匹配到的日期字符串转换为日期对象，然后格式化为指定的格式
+                    date_obj = datetime.strptime(match.group(), '%m/%d/%Y')  # 假设提取的日期格式为 MM/DD/YYYY
+                    formatted_date = date_obj.strftime(date_format)
+                    # 更新DataFrame中匹配到的值
+                    self.df.loc[self.df[field] == unique_value, field] = formatted_date
+                except ValueError:
+                    print(f"日期格式转换错误: {match.group()} 无法按照预期格式解析")
+            else:
+                # 如果没有匹配到，保留原始值
+                continue
 
         return self.df
 
@@ -261,13 +256,11 @@ if __name__ == '__main__':
     pd.set_option('display.float_format', lambda x: '%.0f' % x)
 
     df = pd.read_excel("E:\\datasets\\test_data.xlsx", sheet_name='test1')
-    print(df)
+
+    data = {
+        'text': ['123', 'hello world', '999', 'another test example', 'this is run', '123', '456', '789']
+    }
+    df2 = pd.DataFrame(data)
+
+    # print(df)
     trans = TypeConversion(df)
-
-    # print(trans.numbers_convert_to_text_bins('age', bins=[0, 20, 40, 60], labels=['young', 'middle', 'old']))
-    # print(trans.numbers_convert_to_text_unique('age', mapping={1: 'young', 2: 'middle', 22: 'middle'})['age'])
-    # print(trans.date_convert_to_text_bins('join_date', bins=['2024-05-01', '2024-05-06', '2024-05-11'], labels=[1, 2]))
-    # print(trans.date_convert_to_timestamp('join_date', timestamp_length=13, date_format='%Y-%m-%d'))
-
-    print(trans.text_convert_to_numbers('text', rule_map={'re': "re.search('test', 'test123456')", 'value': 1}))
-    # print(trans.text_convert_to_dates('text',  r'\d{4}-\d{2}-\d{2}'))

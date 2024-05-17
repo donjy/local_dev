@@ -340,8 +340,7 @@ def data_type_convert(df: pd.DataFrame, params: dict) -> pd.DataFrame:
 
         # 文本转日期
         elif field_type == '文本' and process_method == '文本转日期':
-            regex = conf_params.get('regex')
-            date_format = conf_params.get('date_format', '%Y-%m-%d')
-            convertor.text_convert_to_dates(field, regex, date_format)
+            rule_map = conf_params.get('rule_map')
+            convertor.text_convert_to_dates(field, rule_map)
 
     return convertor.df

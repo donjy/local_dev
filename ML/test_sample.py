@@ -121,14 +121,25 @@ def test_data_type_convert():
                 'date_format': '%Y-%m-%d'
             }
         },
-        'text': {
+        'text2': {
             'field_type': '文本',
             'process_method': '文本转数值',
             'conf_params': {
-                'unique_value_list': [],
                 'rule_map': {
-                  "re": "re.search('test', x)",  # 如果text字段文本中包含test，则转换为1
-                  "value": 1
+                    'unique_value_list': ['this is test', 'this is run', 'a123'],  # 指定文本字段的唯一值列表
+                    "re": r"^.{3,5}$",  # 长度3-5位的字符
+                    "value": 1
+                }
+            }
+        },
+        'text': {
+            'field_type': '文本',
+            'process_method': '文本转日期',
+            'conf_params': {
+                'rule_map': {
+                    'unique_value_list': ['He arrived on 2023-06-15', 'The event was on 07/24/2023'],  # 指定文本字段的唯一值列表
+                    "re": r'\d{2}/\d{2}/\d{4}',  # 匹配日期格式 MM/DD/YYYY
+                    'date_format': '%Y-%m-%d'  # 转换为 YYYY-MM-DD 格式
                 }
             }
         }
