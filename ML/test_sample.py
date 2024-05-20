@@ -165,3 +165,49 @@ def test_data_type_convert():
 
     converted_df = data_type_convert(test_data, params)
     print(converted_df)
+
+
+def test_data_standard_normalise():
+    # 数据标准化
+
+    params = {
+        'new_col_suffix': '_normalised',
+        'output_all_cols': False,
+        'age': {
+            'normal_method': '最大最小归一化',
+        },
+        'age2': {
+            'normal_method': 'Z标准化',
+        }
+    }
+
+    standardised_df = data_standard_normalise(test_data, params)
+    print(standardised_df)
+
+
+def test_data_outlier_detect():
+    # 异常值检测
+
+    params = {
+        'target_fields': {
+            'age': {
+                'detect_method': '基于四分位距',
+                'judge_condition': '大于',
+                'threshold': 1.5,
+                'replace_value': 666,
+            },
+            'income': {
+                'detect_method': '自定义异常检测公式',
+                'judge_condition': '大于',
+                'threshold': 200,
+                'replace_value': 9999,
+            }
+        },
+        'process_strategy': {
+            'all_condition': True,
+            'process_method': '直接删除',
+        }
+    }
+
+    outlier_df = data_outlier_detect(test_data, params)
+    print(outlier_df[['age', 'income']])

@@ -1,5 +1,7 @@
 import pandas as pd
+import numpy as np
 from imblearn.over_sampling import SMOTE
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from ML.func_utils import *
 
 
@@ -278,7 +280,7 @@ def data_type_convert(df: pd.DataFrame, params: dict) -> pd.DataFrame:
     Returns: pd.DataFrame: 转换数据类型后的数据集。
 
     """
-    
+
     convertor = TypeConversion(df)
     for field, specs in params.items():
         field_type = specs['field_type']
@@ -350,3 +352,181 @@ def data_type_convert(df: pd.DataFrame, params: dict) -> pd.DataFrame:
             convertor.text_convert_to_dates(field, rule_map)
 
     return convertor.df
+
+
+def data_standard_normalise(df: pd.DataFrame, params: dict) -> pd.DataFrame:
+    """
+    对数据集中的数值类型字段进行标准化或归一化处理。
+    Args:
+        df (pd.DataFrame): 需要标准化或归一化处理的数据集。
+        params (dict): 包含所有必要参数的字典，包括：
+            - new_col_suffix (str): 新生成的字段后缀名称。
+            - output_all_cols: (bool) 是否输出所有字段，True 或 False。
+                                默认: False 仅输出变换后的列，True 输出所有生成的列和原始的列
+            - target_field (dic): 用于处理的字段名称和标准化方法。
+                - normal_method (str): 处理方法，'最大最小归一化'，'Z标准化' 或' 不处理'。
+
+        示例：
+        params = {
+            'new_col_suffix': '_normalised',
+            'output_all_cols': True,
+            'age': {
+                'normal_method': '最大最小归一化',
+            },
+            'age2': {
+                'normal_method': 'Z标准化',
+            }
+        }
+    Returns: pd.DataFrame: 转换数据类型后的数据集。
+
+    """
+
+    # 解析params字典
+    new_col_suffix = params.get('new_col_suffix', '_normalised')
+    output_all_cols = params.get('output_all_cols', False)
+    transformed_fields = []  # 用于收集所有处理后的列名
+    all_fields = list(df.columns)  # 收集所有原始字段
+
+    # 遍历参数中配置的字段
+    for field in params.keys():
+        if field in ['new_col_suffix', 'output_all_cols']:
+            continue  # 跳过全局配置参数
+
+        if field not in df.columns:
+            continue  # 如果字段不在数据框中，跳过
+
+        field_params = params[field]
+        normal_method = field_params.get('normal_method', '不处理')  # 默认不处理
+
+        if normal_method == '最大最小归一化':
+            scaler = MinMaxScaler()
+            new_field_name = field + new_col_suffix
+            df[new_field_name] = scaler.fit_transform(df[[field]])
+            transformed_fields.append(new_field_name)
+        elif normal_method == 'Z标准化':
+            scaler = StandardScaler()
+            new_field_name = field + new_col_suffix
+            df[new_field_name] = scaler.fit_transform(df[[field]])
+            transformed_fields.append(new_field_name)
+        elif normal_method != '不处理':
+            raise ValueError(f"未知的标准化方法 '{normal_method}'。")
+
+    # 根据参数选择是否返回所有列
+    if output_all_cols:
+        # 返回所有原始列和新增的 normalised 列
+        return df
+    else:
+        # 返回只包含已处理的新字段以及未处理的原始字段
+        non_transformed_fields = [f for f in all_fields if f + new_col_suffix not in transformed_fields]
+        return df[transformed_fields + non_transformed_fields]
+
+
+def data_outlier_detect(df: pd.DataFrame, params: dict) -> pd.DataFrame:
+    """
+    对指定的字段列表进行指定的异常值检测处理。
+    Args:
+        df: pd.DataFrame: 需要处理的数据集。
+        params: (dict): 包含所有必要参数的字典，包括：
+        - target_fields (dict): 需要处理的字段名称和相关处理方式。
+            - detect_method (str): 异常值检测方法，提供“基于四分位距”和“自定义异常检测公式”两种方法。
+            - judge_condition (str): 判断条件，'大于','大于等于','小于','小于等于','等于'。
+            - threshold (float): 阈值，用于判断异常值。
+            - replace_value (float): 自定义替换值。
+        - process_strategy (dict): 异常值处理策略。
+            - all_condition (bool): 是否所有字段都满足异常检测条件的时候才处理，True 或 False。
+            - process_method (str): 异常值处理方法，'直接删除' 或 '均值替换' 或'自定义值替换'
+        示例：
+        params = {
+            'target_field': {
+                'age': {
+                    'detect_method': '基于四分位距',
+                    'judge_condition': '大于',
+                    'threshold': 1.5,
+                    'replace_value': 0,
+                },
+                'age2': {
+                    'detect_method': '自定义异常检测公式',
+                    'judge_condition': '大于',
+                    'threshold': 100,
+                    'replace_value': 0,
+                }
+            },
+            'process_strategy': {
+                'all_condition': True,
+                'process_method': '直接删除',
+            }
+        }
+    Returns: pd.DataFrame: 处理后的数据集。
+
+
+    """
+
+    target_fields = params.get('target_fields', {})
+    process_strategy = params.get('process_strategy', {})
+    all_condition = process_strategy.get('all_condition', True)
+    process_method = process_strategy.get('process_method', '直接删除')
+
+    conditions = []  # 存储所有字段的条件
+
+    # 先计算每个字段的条件
+    for field, config in target_fields.items():
+        if field not in df.columns:
+            continue  # 如果字段不在数据框中，跳过
+
+        detect_method = config.get('detect_method')
+        judge_condition = config.get('judge_condition')
+        threshold = config.get('threshold')
+        replace_value = config.get('replace_value')
+
+        if detect_method == '基于四分位距':
+            Q1 = df[field].quantile(0.25)
+            Q3 = df[field].quantile(0.75)
+            IQR = Q3 - Q1
+            lower_bound = Q1 - threshold * IQR
+            upper_bound = Q3 + threshold * IQR
+
+            if judge_condition in ['小于', '小于等于']:
+                condition = df[field] < lower_bound
+            elif judge_condition in ['大于', '大于等于']:
+                condition = df[field] > upper_bound
+        elif detect_method == '自定义异常检测公式':
+            if judge_condition == '小于':
+                condition = df[field] < threshold
+            elif judge_condition == '小于等于':
+                condition = df[field] <= threshold
+            elif judge_condition == '大于':
+                condition = df[field] > threshold
+            elif judge_condition == '大于等于':
+                condition = df[field] >= threshold
+            elif judge_condition == '等于':
+                condition = df[field] == threshold
+        else:
+            continue
+
+        conditions.append(condition)
+
+    # 处理所有条件
+    if all_condition:
+        # 如果所有条件都满足
+        all_met = np.logical_and.reduce(conditions)
+        if process_method == '直接删除':
+            df = df[~all_met]
+        elif process_method in ['均值替换', '自定义值替换']:
+            for field in target_fields:
+                if process_method == '均值替换':
+                    df.loc[all_met, field] = df[field].mean()
+                elif process_method == '自定义值替换':
+                    df.loc[all_met, field] = target_fields[field]['replace_value']
+    else:
+        # 如果任何一个条件满足
+        any_met = np.logical_or.reduce(conditions)
+        if process_method == '直接删除':
+            df = df[~any_met]
+        elif process_method in ['均值替换', '自定义值替换']:
+            for field in target_fields:
+                if process_method == '均值替换':
+                    df.loc[any_met, field] = df[field].mean()
+                elif process_method == '自定义值替换':
+                    df.loc[any_met, field] = target_fields[field]['replace_value']
+
+    return df
