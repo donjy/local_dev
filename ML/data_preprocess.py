@@ -4,6 +4,16 @@ from imblearn.over_sampling import SMOTE
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from ML.func_utils import *
 
+"""
+    数据预处理模块
+    1. 样本平衡       ->    balance_sample_by_random, balance_sample_by_smote
+    2. 数据去重       ->    remove_duplicates_data
+    3. 缺失值处理     ->    fill_nan_data
+    4. 类型变换       ->    data_type_convert
+    5. 特征标准化     ->    data_standard_normalise
+    6. 异常值检测     ->    data_outlier_detect
+"""
+
 
 def balance_sample_by_random(df: pd.DataFrame, params: dict) -> pd.DataFrame:
     """
