@@ -37,7 +37,7 @@ def selected_label_df(df: pd.DataFrame, params: dict) -> pd.DataFrame:
 
     # 检查是否所有列名都在 DataFrame 中
     feature_cols = params['feature_cols']
-    label_col = params['label_col']
+    label_col = params.get('label_col', 'label')
     required_cols = feature_cols + [label_col]
     missing_cols = [col for col in required_cols if col not in df.columns]
     if missing_cols:

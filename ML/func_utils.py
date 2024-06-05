@@ -1,6 +1,7 @@
 import pandas as pd
 import re
 from sklearn.preprocessing import LabelEncoder
+import matplotlib.pyplot as plt
 from datetime import datetime
 
 
@@ -267,6 +268,12 @@ class TypeConversion:
                     continue
 
         return self.df
+
+
+# 设置中文字体以防止中文乱码
+def set_chinese_font():
+    plt.rcParams['font.sans-serif'] = ['SimHei']  # 设置字体为黑体
+    plt.rcParams['axes.unicode_minus'] = False    # 解决坐标轴负号显示问题
 
 
 if __name__ == '__main__':
