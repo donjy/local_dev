@@ -13,6 +13,12 @@ import os
 import json
 import datetime
 
+"""
+    特征处理模块
+    1. 逻辑回归       ->    logistic_regression
+    2. 线性回归       ->    line_regression
+"""
+
 
 def logistic_regression(df: pd.DataFrame, params: dict):
     """

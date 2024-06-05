@@ -7,7 +7,14 @@ from sklearn import datasets
 import datetime
 import os
 
-from ML.func_utils import set_chinese_font
+from func_utils import set_chinese_font
+
+"""
+    特征处理模块
+    1. 相关性矩阵       ->    correlation_matrix
+    2. 缺失值占比       ->    miss_value_ratio
+    3. 特征洞察         ->    field_data_insights
+"""
 
 
 def correlation_matrix(df: pd.DataFrame, params: dict = {} ):

@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from imblearn.over_sampling import SMOTE
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
-from ML.func_utils import *
+from func_utils import *
 
 """
     数据预处理模块
