@@ -19,7 +19,7 @@ from func_utils import set_chinese_font
 
 def correlation_matrix(df: pd.DataFrame, params: dict = {} ):
     """
-     对df所有列计算相关系数矩阵,只保留下矩阵, 并作图
+     对df所有字符类型的列计算相关系数矩阵,只保留下矩阵, 并作图
     Args:
         df (pd.DataFrame): 原始数据
         params (dict): 包含所有必要参数的字典，包括：
@@ -28,6 +28,8 @@ def correlation_matrix(df: pd.DataFrame, params: dict = {} ):
     Returns:
         相关系数矩阵图片
     """
+    # 选取数值型
+    df = df.select_dtypes(include=[np.number])
     # 计算相关系数矩阵
     corr = df.corr()
 
@@ -191,7 +193,8 @@ def field_data_insights(df: pd.DataFrame, params: dict):
 if __name__ == '__main__':
     # 创建示例数据
     iris_datas = datasets.load_iris()
-    iris_df = pd.DataFrame(iris_datas.data, columns=['Sepal Length', 'Sepal Width', 'Petal Length', 'Petal Width'])
+    # iris_df = pd.DataFrame(iris_datas.data, columns=['Sepal Length', 'Sepal Width', 'Petal Length', 'Petal Width'])
+    iris_df = pd.DataFrame(iris_datas.data, columns=iris_datas.feature_names)
     iris_df['label'] = iris_datas.target
     test_data = pd.read_excel("E:\\datasets\\test_data.xlsx", sheet_name='test1')
 
@@ -199,7 +202,8 @@ if __name__ == '__main__':
         'field_name': 'income',
         'field_type': 'numeric'
     }
+
     # 调用函数生成相关系数矩阵图
-    # correlation_matrix(iris_df)
+    correlation_matrix(test_data)
     # print(miss_value_ratio(test_data))
-    print(field_data_insights(test_data, params))
+    # print(field_data_insights(test_data, params))
