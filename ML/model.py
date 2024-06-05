@@ -21,7 +21,7 @@ def logistic_regression(df: pd.DataFrame, params: dict):
         df (pd.DataFrame): 原始数据
         params (dict): 包含所有必要参数的字典，包括：
             - split_ratio (int): 训练集和测试集的划分比例, 默认：80
-            - penalty_value (float): 正则化参数控制机器的复杂度，浮点型，取值范围：(0,10E5]，默认值为0.01。
+            - penalty_value (float): 正则化参数复杂度，浮点型，取值范围：(0,10E5]，默认值为0.01。
             - max_iter (int): 最大迭代次数，整型，取值范围：[1,10E5]，默认值为100。
             - tolerance (float): 终止迭代的误差界，浮点型，取值范围：[0,1)，默认值为0.01。
             - penalty_type (str): 正则化类型，字符串，取值范围：['l1','l2']，默认值为'l2'。
@@ -122,7 +122,6 @@ def line_regression(df: pd.DataFrame, params: dict):
             - penalty_value (float): 正则化参数控制机器的复杂度，浮点型，取值范围：(0,10E5]，默认值为0.01。
             - max_iter (int): 最大迭代次数，整型，取值范围：[1,10E5]，默认值为100。
             - tolerance (float): 终止迭代的误差界，浮点型，取值范围：[0,1)，默认值为0.01。
-            - calcu_method (float): 计算方法, 可选：['auto', 'L-BFGS', 'Normal']
             - penalty_type (str): 正则化类型，字符串，取值范围：['l1','l2','l1+l2']，默认值为'l2'。
             - model_save_path (str): 模型保存路径, 默认为'./model_files'。
 
@@ -132,7 +131,6 @@ def line_regression(df: pd.DataFrame, params: dict):
               'penalty_value': 0.01,
               'max_iter': 100,
               'tolerance': 0.01,
-              'calcu_method': 'auto',
               'penalty_type': 'l2',
               'model_save_path': './model_files'
         }
@@ -148,7 +146,6 @@ def line_regression(df: pd.DataFrame, params: dict):
     l1_ratio = params.get('l1_ratio', 0.5)  # L1 ratio for ElasticNet
     max_iter = params.get('max_iter', 100)
     tolerance = params.get('tolerance', 0.01)
-    calcu_method = params.get('calcu_method', 'auto')
     penalty_type = params.get('penalty_type', 'l2')
     model_save_path = params.get('model_save_path', "./model_files")
 
@@ -163,7 +160,7 @@ def line_regression(df: pd.DataFrame, params: dict):
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=1 - split_ratio, random_state=42)
 
     if penalty_type == 'l2':
-        model = Ridge(alpha=penalty_value, max_iter=max_iter, tol=tolerance, solver=calcu_method)
+        model = Ridge(alpha=penalty_value, max_iter=max_iter, tol=tolerance)
     elif penalty_type == 'l1':
         model = Lasso(alpha=penalty_value, max_iter=max_iter, tol=tolerance)
     elif penalty_type == 'l1+l2':
@@ -220,8 +217,7 @@ if __name__ == '__main__':
         'penalty_value': 0.01,
         'max_iter': 100,
         'tolerance': 0.01,
-        'calcu_method': 'auto',
-        'penalty_type': 'l1+l2',
+        'penalty_type': 'l2',
         'model_save_path': './model_files'
     }
     # 使用sklearn的datasets加载diabetes数据集进行测试
