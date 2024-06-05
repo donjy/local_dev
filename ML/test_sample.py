@@ -3,6 +3,8 @@
 """
 import pandas as pd
 from data_preprocess import *
+from feature_process import *
+from model import *
 
 pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
@@ -211,3 +213,113 @@ def test_data_outlier_detect():
 
     outlier_df = data_outlier_detect(test_data, params)
     print(outlier_df[['age', 'income']])
+
+
+def test_selected_label_df():
+    params = {
+        'feature_cols': ['name', 'age', 'sex'],
+        'label_col': 'label'
+    }
+
+    selected_df = selected_label_df(test_data, params)
+    print(selected_df)
+
+
+def test_feature_encoder():
+    params = {
+        'new_col_suffix': '_encoded',
+        'is_add_new_col': True,
+        'age': {
+            'encode_method': 'Binarizer',
+            'threshold': '2'
+        },
+        'text': {
+            'encode_method': 'LabelEncoder'
+        }
+    }
+
+    encoded_df = feature_encoder(test_data, params)
+    print(encoded_df)
+
+
+def test_feature_crossover():
+    params = {
+        "conf_lists": [
+            {
+                "feature_cols": [
+                    "age",
+                    "income",
+                    "height"
+                ],
+                "crossover_methods": [
+                    "multiply",
+                    "add"
+                ]
+            },
+            {
+                "feature_cols": [
+                    "height",
+                    "weight"
+                ],
+                "crossover_methods": [
+                    "multiply",
+                    "add"
+                ]
+            }
+        ]
+    }
+
+    crossover_df = feature_crossover(test_data, params)
+    print(crossover_df)
+
+
+def test_feature_bin():
+    params = {
+        "bin_method": "MeanStdBased",
+        "age": {
+            "conf_value": "2倍标准差",
+            "colum_suffix": "_binned"
+        },
+        "weight": {
+            "conf_value": "3倍标准差",
+            "colum_suffix": "_binned"
+        }
+    }
+
+    binned_df = feature_bin(test_data, params)
+    print(binned_df)
+
+
+def test_feature_selection():
+    params = {
+        "label_field": "label",
+        "label_type": "string",
+        "country": {
+            "field_type": "string",
+            "p_value": 0.05
+        },
+        "weight": {
+            "field_type": "numerical",
+            "p_value": 0.05
+        }
+    }
+
+    selected_df = feature_selection(test_data, params)
+    print(selected_df)
+
+
+def test_lr_model():
+    params = {
+        'split_ratio': 80,
+        'penalty_value': 0.01,
+        'max_iter': 100,
+        'tolerance': 0.01,
+        'penalty_type': 'l2',
+    }
+
+    iris_datas = datasets.load_iris()
+    iris_df = pd.DataFrame(iris_datas.data, columns=['Sepal Length', 'Sepal Width', 'Petal Length', 'Petal Width'])
+    iris_df['label'] = iris_datas.target
+
+    lr_model = logistic_regression(iris_df, params)
+    print(lr_model)
