@@ -154,6 +154,7 @@ def field_data_insights(df: pd.DataFrame, params: dict):
             "均值": df[field_name].mean(),
             "下四分位数": df[field_name].quantile(0.25),
             "标准差": df[field_name].std(),
+            "方差": df[field_name].var(),
             "中位数": df[field_name].median(),
             "上四分位数": df[field_name].quantile(0.75)
         }
@@ -204,6 +205,6 @@ if __name__ == '__main__':
     }
 
     # 调用函数生成相关系数矩阵图
-    correlation_matrix(test_data)
+    # correlation_matrix(test_data)
     # print(miss_value_ratio(test_data))
-    # print(field_data_insights(test_data, params))
+    print(field_data_insights(test_data, params))
