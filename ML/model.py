@@ -84,28 +84,42 @@ def logistic_regression(df: pd.DataFrame, params: dict):
     y_probs = pipeline.predict_proba(X_test)
 
     # 评价指标计算
-    metrics = {
+    test_metrics = {
         "Accuracy": accuracy_score(y_test, y_pred),
         "Precision": precision_score(y_test, y_pred, average='weighted'),
         "Recall": recall_score(y_test, y_pred, average='weighted'),
         "F1 Score": f1_score(y_test, y_pred, average='weighted'),
     }
 
+    # 训练集预测和评估
+    y_pred_train = pipeline.predict(X_train)
+    train_metrics = {
+        "Accuracy": accuracy_score(y_train, y_pred_train),
+        "Precision": precision_score(y_train, y_pred_train, average='weighted'),
+        "Recall": recall_score(y_train, y_pred_train, average='weighted'),
+        "F1 Score": f1_score(y_train, y_pred_train, average='weighted'),
+    }
+
     # 如果是二类或多类问题，计算AUC
     if len(np.unique(y)) > 2:
         y_test_binarized = label_binarize(y_test, classes=np.unique(y))
         if y_test_binarized.shape[1] > 1:  # Only calculate AUC if more than one label
-            metrics["ROC AUC"] = roc_auc_score(y_test_binarized, y_probs, multi_class='ovr')
+            test_metrics["ROC AUC"] = roc_auc_score(y_test_binarized, y_probs, multi_class='ovr')
     elif len(np.unique(y)) == 2:
-        metrics["ROC AUC"] = roc_auc_score(y_test, y_probs[:, 1])
+        test_metrics["ROC AUC"] = roc_auc_score(y_test, y_probs[:, 1])
 
     # 保存模型
     filename = f"logistic_regression_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.pmml"
     full_model_path = os.path.join(model_save_path, filename)
     sklearn2pmml(pipeline, full_model_path, with_repr=True)
 
-    # 打印和返回评价指标
+    # 总体评估指标
+    metrics = {
+        "train_metrics": train_metrics,
+        "test_metrics": test_metrics
+    }
     metrics_json = json.dumps(metrics, indent=4)
+
     print(f"Model Evaluation Metrics:\n{metrics_json}")
     print(f"Model saved to {full_model_path}")
 
@@ -177,13 +191,25 @@ def line_regression(df: pd.DataFrame, params: dict):
     pipeline = make_pmml_pipeline(model)
     pipeline.fit(X_train, y_train)
 
-    y_pred = pipeline.predict(X_test)
-    mse = mean_squared_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
+    # 测试集预测和评估
+    y_pred_test = pipeline.predict(X_test)
+    mse_test = mean_squared_error(y_test, y_pred_test)
+    r2_test = r2_score(y_test, y_pred_test)
+
+    # 训练集预测和评估
+    y_pred_train = pipeline.predict(X_train)
+    mse_train = mean_squared_error(y_train, y_pred_train)
+    r2_train = r2_score(y_train, y_pred_train)
 
     metrics = {
-        "Mean Squared Error": mse,
-        "R2 Score": r2
+        "train_metrics": {
+            "Mean Squared Error": mse_train,
+            "R2 Score": r2_train
+        },
+        "test_metrics": {
+            "Mean Squared Error": mse_test,
+            "R2 Score": r2_test
+        }
     }
 
     metrics_json = json.dumps(metrics, indent=4)
