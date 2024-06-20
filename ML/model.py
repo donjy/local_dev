@@ -140,6 +140,7 @@ def line_regression(df: pd.DataFrame, params: dict):
         params (dict): 包含所有必要参数的字典，包括：
             - split_ratio (int): 训练集和测试集的划分比例, 默认：80
             - penalty_value (float): 正则化参数控制机器的复杂度，浮点型，取值范围：(0,10E5]，默认值为0.01。
+            - l1_ratio (float): L1正则化比例，取值范围：(0.0-1.0），默认为0.5。
             - max_iter (int): 最大迭代次数，整型，取值范围：[1,10E5]，默认值为100。
             - tolerance (float): 终止迭代的误差界，浮点型，取值范围：[0,1)，默认值为0.01。
             - penalty_type (str): 正则化类型，字符串，取值范围：['l1','l2','l1+l2']，默认值为'l2'。
@@ -249,7 +250,8 @@ if __name__ == '__main__':
         'penalty_value': 0.01,
         'max_iter': 100,
         'tolerance': 0.01,
-        'penalty_type': 'l2',
+        'penalty_type': 'l1+l2',
+        'l1_ratio': 0.6,
         'model_save_path': './model_files'
     }
     # 使用sklearn的datasets加载diabetes数据集进行测试
