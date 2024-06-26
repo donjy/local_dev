@@ -187,7 +187,7 @@ def field_data_insights(df: pd.DataFrame, params: dict):
         plt.savefig(full_path, bbox_inches='tight')
         plt.show()
 
-        return numeric_stats
+        return numeric_stats, full_path
 
 
 
