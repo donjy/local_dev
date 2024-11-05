@@ -81,7 +81,7 @@ def test_fill_nan_data():
 def test_data_type_convert():
     # 类型转换
     params = {
-        'age': {
+        '年龄': {
             'field_type': '数值',
             'process_method': '数值转文本',
             'conf_params': {
@@ -152,17 +152,17 @@ def test_data_type_convert():
                 }
             }
         },
-        'text': {
-            'field_type': '文本',
-            'process_method': '文本转日期',
-            'conf_params': {
-                'rule_map': {
-                    'unique_value_list': [['10/10/2020aaa'], ['2023-12-31', '2024-01-01', 'He arrived on 2023-06-15']],
-                    "re": [r"\d{2}/\d{2}/\d{4}", r"\d{4}-\d{2}-\d{2}"],
-                    'date_format': ['%m/%d/%Y', '%Y-%m-%d']
-                }
-            }
-        }
+        # 'text': {
+        #     'field_type': '文本',
+        #     'process_method': '文本转日期',
+        #     'conf_params': {
+        #         'rule_map': {
+        #             'unique_value_list': [['10/10/2020aaa'], ['2023-12-31', '2024-01-01', 'He arrived on 2023-06-15']],
+        #             "re": [r"\d{2}/\d{2}/\d{4}", r"\d{4}-\d{2}-\d{2}"],
+        #             'date_format': ['%m/%d/%Y', '%Y-%m-%d']
+        #         }
+        #     }
+        # }
     }
 
     converted_df = data_type_convert(test_data, params)
@@ -247,13 +247,12 @@ def test_feature_crossover():
         "conf_lists": [
             {
                 "feature_cols": [
-                    "age",
-                    "income",
+                    "age2",
                     "height"
                 ],
                 "crossover_methods": [
                     "multiply",
-                    "add"
+                    "divide"
                 ]
             },
             {

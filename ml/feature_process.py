@@ -125,7 +125,7 @@ def feature_encoder(df: pd.DataFrame, params: dict) -> pd.DataFrame:
 def feature_crossover(df: pd.DataFrame, params: dict) -> pd.DataFrame:
     """
     选取df指定字段进行特征交叉
-        遍历conf_lists，对feature_cols中的所有字段按照crossover_methods中的方法依次进行运算，生成新的字段
+        遍历conf_lists，对feature_cols中的两个字段按照crossover_methods中的方法进行运算，并生成新的字段。
     Args:
         df (pd.DataFrame): 原始数据
         params (dict): 包含所有必要参数的字典，包括：
@@ -141,12 +141,11 @@ def feature_crossover(df: pd.DataFrame, params: dict) -> pd.DataFrame:
                 {
                   "feature_cols": [
                     "age",
-                    "income",
                     "height"
                   ],
                   "crossover_methods": [
-                    "multiply",
-                    "add"
+                    "add",
+                    "subtract"
                   ]
                 },
                 {
@@ -156,7 +155,7 @@ def feature_crossover(df: pd.DataFrame, params: dict) -> pd.DataFrame:
                   ],
                   "crossover_methods": [
                     "multiply",
-                    "add"
+                    "divide"
                   ]
                 }
               ]
@@ -168,23 +167,23 @@ def feature_crossover(df: pd.DataFrame, params: dict) -> pd.DataFrame:
         feature_cols = conf['feature_cols']
         crossover_methods = conf['crossover_methods']
 
-        # 对每种方法处理所有字段
         for method in crossover_methods:
-            # 初始化结果列
             if method == 'add':
-                result_col = df[feature_cols].sum(axis=1)
+                result_col = df[feature_cols[0]] + df[feature_cols[1]]
             elif method == 'subtract':
-                result_col = df[feature_cols].diff(axis=1).iloc[:, -1]  # 计算最终的差异
+                result_col = df[feature_cols[0]] - df[feature_cols[1]]
             elif method == 'multiply':
-                result_col = df[feature_cols].prod(axis=1)
+                result_col = df[feature_cols[0]] * df[feature_cols[1]]
             elif method == 'divide':
                 # 避免除以0的错误
-                result_col = df[feature_cols].replace(0, np.nan)
-                for col in feature_cols[1:]:  # 除第一个列以外的所有列
-                    result_col = result_col.div(df[col], axis=0)
+                with np.errstate(divide='raise', invalid='raise'):
+                    try:
+                        result_col = df[feature_cols[0]] / df[feature_cols[1]]
+                    except FloatingPointError:
+                        result_col = df[feature_cols[0]] / df[feature_cols[1]].replace(0, np.nan)
 
             # 生成新列名并将结果列添加到DataFrame
-            new_col_name = f"{'_'.join([f'{col}_{method}' for col in feature_cols])[:-len(method) - 1]}"
+            new_col_name = f"{'_'.join(feature_cols)}_{method}"
             df[new_col_name] = result_col
 
     return df
